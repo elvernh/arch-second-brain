@@ -18,37 +18,38 @@ async function getTranscript(url) {
     const videoId = extractVideoId(url);
     if (!videoId) throw new Error('Invalid YouTube URL');
 
-    // Fetch video page to find caption tracks
-    const pageRes = await axios.get(`https://www.youtube.com/watch?v=${videoId}`, {
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Accept-Language': 'en-US,en;q=0.9'
+    // Use YouTube InnerTube API — avoids HTML scraping and rate limits
+    const playerRes = await axios.post(
+        'https://www.youtube.com/youtubei/v1/player',
+        {
+            videoId,
+            context: {
+                client: {
+                    clientName: 'WEB',
+                    clientVersion: '2.20240101',
+                    hl: 'en',
+                    gl: 'US'
+                }
+            }
         },
-        timeout: 15000
-    });
+        {
+            headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+            timeout: 15000
+        }
+    );
 
-    const html = pageRes.data;
-    const parts = html.split('"captions":');
-    if (parts.length < 2) throw new Error('Transcript is disabled on this video');
+    const tracks = playerRes.data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+    if (!tracks || tracks.length === 0) throw new Error('Transcript is disabled on this video');
 
-    let captions;
-    try {
-        const raw = parts[1].split(',"videoDetails')[0];
-        captions = JSON.parse(raw).playerCaptionsTracklistRenderer;
-    } catch {
-        throw new Error('Transcript is disabled on this video');
-    }
-
-    const tracks = captions?.captionTracks;
-    if (!tracks || tracks.length === 0) throw new Error('No transcript available for this video');
-
-    // Prefer auto-generated English, then any auto-generated, then first available
+    // Prefer auto-generated English, then Indonesian, then first available
     const track = tracks.find(t => t.languageCode === 'en' && t.kind === 'asr')
         || tracks.find(t => t.kind === 'asr')
         || tracks.find(t => t.languageCode === 'id')
         || tracks[0];
 
-    // Fetch as JSON3 for easy parsing
     const captionRes = await axios.get(`${track.baseUrl}&fmt=json3`, { timeout: 10000 });
     const events = captionRes.data?.events || [];
 
