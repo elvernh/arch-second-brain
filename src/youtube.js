@@ -1,4 +1,10 @@
 const axios = require('axios');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
+const fs = require('fs');
+const path = require('path');
+
+const execFileAsync = promisify(execFile);
 
 function extractVideoId(url) {
     const match = url.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
@@ -14,22 +20,13 @@ async function getVideoTitle(url) {
     }
 }
 
-async function getTranscript(url) {
-    const videoId = extractVideoId(url);
-    if (!videoId) throw new Error('Invalid YouTube URL');
-
-    // Use YouTube InnerTube API — avoids HTML scraping and rate limits
+async function getTranscriptViaInnerTube(videoId) {
     const playerRes = await axios.post(
         'https://www.youtube.com/youtubei/v1/player',
         {
             videoId,
             context: {
-                client: {
-                    clientName: 'WEB',
-                    clientVersion: '2.20240101',
-                    hl: 'en',
-                    gl: 'US'
-                }
+                client: { clientName: 'WEB', clientVersion: '2.20240101', hl: 'en', gl: 'US' }
             }
         },
         {
@@ -42,9 +39,8 @@ async function getTranscript(url) {
     );
 
     const tracks = playerRes.data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-    if (!tracks || tracks.length === 0) throw new Error('Transcript is disabled on this video');
+    if (!tracks || tracks.length === 0) throw new Error('No caption tracks found');
 
-    // Prefer auto-generated English, then Indonesian, then first available
     const track = tracks.find(t => t.languageCode === 'en' && t.kind === 'asr')
         || tracks.find(t => t.kind === 'asr')
         || tracks.find(t => t.languageCode === 'id')
@@ -61,8 +57,27 @@ async function getTranscript(url) {
         .replace(/\s+/g, ' ')
         .trim();
 
-    if (!text) throw new Error('Transcript is empty for this video');
+    if (!text) throw new Error('Transcript is empty');
     return text;
+}
+
+async function getTranscriptViaPython(url) {
+    const scriptPath = path.join(__dirname, 'fetch_content.py');
+    const python = fs.existsSync('/opt/venv/bin/python3') ? '/opt/venv/bin/python3' : 'python3';
+    const { stdout } = await execFileAsync(python, [scriptPath, url], { timeout: 30000 });
+    return stdout;
+}
+
+async function getTranscript(url) {
+    const videoId = extractVideoId(url);
+    if (!videoId) throw new Error('Invalid YouTube URL');
+
+    try {
+        return await getTranscriptViaInnerTube(videoId);
+    } catch {
+        // Fall back to Python youtube-transcript-api
+        return await getTranscriptViaPython(url);
+    }
 }
 
 module.exports = { extractVideoId, getVideoTitle, getTranscript };
