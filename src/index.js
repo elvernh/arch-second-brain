@@ -222,7 +222,7 @@ client.on('interactionCreate', async (interaction) => {
             const VALID_CATEGORIES = ['iOS', 'SaaS', 'Blockchain', 'Research Methodology', 'Microservices', 'Software Testing', 'Mandarin', 'General'];
 
             const aiResponse = await anthropic.messages.create({
-                model: 'claude-sonnet-4-6',
+                model: 'claude-haiku-4-5-20251001',
                 max_tokens: 1024,
                 system: 'You are a concise learning assistant. Return ONLY valid JSON, no markdown.',
                 messages: [{
@@ -241,7 +241,15 @@ client.on('interactionCreate', async (interaction) => {
 
             const category = VALID_CATEGORIES.includes(parsed.category) ? parsed.category : 'General';
 
-            const notionUrl = await createYoutubeSummaryPage(process.env.NOTION_PAGE_LEARNING, {
+            // Reply immediately, save to Notion in the background
+            await interaction.editReply(
+                `**${videoTitle}**\n` +
+                `Category: ${category} *(auto-detected)*\n\n` +
+                `**Summary:** ${parsed.summary}\n\n` +
+                `_Saving to Notion..._`
+            );
+
+            createYoutubeSummaryPage(process.env.NOTION_PAGE_LEARNING, {
                 videoTitle,
                 url,
                 category,
@@ -249,14 +257,16 @@ client.on('interactionCreate', async (interaction) => {
                 keyPoints: parsed.keyPoints || [],
                 actionItems: parsed.actionItems || [],
                 savedAt: ts
+            }).then(notionUrl => {
+                interaction.editReply(
+                    `**${videoTitle}**\n` +
+                    `Category: ${category} *(auto-detected)*\n\n` +
+                    `**Summary:** ${parsed.summary}\n\n` +
+                    `Saved to Notion Learning: ${notionUrl}`
+                ).catch(() => {});
+            }).catch(err => {
+                console.error('Notion save failed:', err.message);
             });
-
-            await interaction.editReply(
-                `**${videoTitle}**\n` +
-                `Category: ${category} *(auto-detected)*\n\n` +
-                `**Summary:** ${parsed.summary}\n\n` +
-                `Saved to Notion Learning: ${notionUrl}`
-            );
 
         } else if (commandName === 'whatsapp') {
             const { unreadChats, results } = await getUrgentMessages();
