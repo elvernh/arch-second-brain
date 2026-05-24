@@ -10,13 +10,73 @@ Outputs extracted text to stdout.
 """
 import sys, re, pathlib
 
+
+def _innertube_transcript(video_id: str):
+    """Fetch transcript via YouTube iOS InnerTube API (bypasses cloud IP blocks)."""
+    import requests
+
+    resp = requests.post(
+        "https://www.youtube.com/youtubei/v1/player",
+        headers={
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": "AIzaSyB-63vPrdThhKuerbB2N_l7Kwwcxj6yUAc",
+            "User-Agent": "com.google.ios.youtube/19.09.3 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X;)",
+        },
+        json={
+            "context": {
+                "client": {
+                    "clientName": "IOS",
+                    "clientVersion": "19.09.3",
+                    "deviceModel": "iPhone16,2",
+                    "hl": "en",
+                    "gl": "US",
+                }
+            },
+            "videoId": video_id,
+        },
+        timeout=15,
+    )
+    if not resp.ok:
+        return None
+
+    tracks = (
+        resp.json()
+        .get("captions", {})
+        .get("playerCaptionsTracklistRenderer", {})
+        .get("captionTracks", [])
+    )
+    if not tracks:
+        return None
+
+    track = next((t for t in tracks if t.get("languageCode", "").startswith("en")), tracks[0])
+    cap = requests.get(track["baseUrl"] + "&fmt=json3", timeout=15)
+    if not cap.ok:
+        return None
+
+    texts = []
+    for event in cap.json().get("events", []):
+        for seg in event.get("segs", []):
+            t = seg.get("utf8", "").strip()
+            if t and t != "\n":
+                texts.append(t)
+
+    return " ".join(texts) if texts else None
+
+
 def fetch_youtube(url: str) -> str:
     import os
-    from youtube_transcript_api import YouTubeTranscriptApi
     match = re.search(r"(?:v=|youtu\.be/)([A-Za-z0-9_-]{11})", url)
     if not match:
         raise ValueError("Could not extract YouTube video ID from URL.")
     video_id = match.group(1)
+
+    # Primary: iOS InnerTube (no proxy needed, works from cloud IPs)
+    text = _innertube_transcript(video_id)
+    if text:
+        return f"[YouTube transcript — {url}]\n\n{text}"
+
+    # Fallback: youtube-transcript-api (works locally; proxy for cloud)
+    from youtube_transcript_api import YouTubeTranscriptApi
 
     username = os.environ.get("WEBSHARE_USERNAME")
     password = os.environ.get("WEBSHARE_PASSWORD")
@@ -36,8 +96,8 @@ def fetch_youtube(url: str) -> str:
         transcript = transcript_list.find_generated_transcript(
             [t.language_code for t in transcript_list]
         ).fetch()
-    text = " ".join(entry.text for entry in transcript)
-    return f"[YouTube transcript — {url}]\n\n{text}"
+    return f"[YouTube transcript — {url}]\n\n{' '.join(e.text for e in transcript)}"
+
 
 def fetch_article(url: str) -> str:
     import requests
@@ -53,12 +113,13 @@ def fetch_article(url: str) -> str:
     lines = [l.strip() for l in text.splitlines() if l.strip()]
     return f"[Article — {url}]\n\n" + "\n".join(lines)
 
+
 def fetch_pdf(path: str) -> str:
     import pypdf
     reader = pypdf.PdfReader(path)
     pages = [page.extract_text() or "" for page in reader.pages]
-    text = "\n\n".join(pages)
-    return f"[PDF — {path}]\n\n{text}"
+    return f"[PDF — {path}]\n\n" + "\n\n".join(pages)
+
 
 def main():
     if len(sys.argv) < 2:
