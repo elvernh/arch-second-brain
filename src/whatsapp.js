@@ -1,0 +1,54 @@
+const axios = require('axios');
+
+function _base() {
+    const instanceId = process.env.WHATSAPP_INSTANCE_ID;
+    const token = process.env.WHATSAPP_TOKEN;
+    if (!instanceId || !token) throw new Error('WHATSAPP_INSTANCE_ID and WHATSAPP_TOKEN must be set in .env');
+    return { base: `https://api.green-api.com/waInstance${instanceId}`, token };
+}
+
+async function getChats() {
+    const { base, token } = _base();
+    const res = await axios.get(`${base}/getChats/${token}`, { timeout: 10000 });
+    return res.data.map(c => ({
+        id: c.id,
+        name: c.name || c.id,
+        unread: c.unreadCount || 0,
+    }));
+}
+
+async function getRecentMessages(chatId, count = 20) {
+    const { base, token } = _base();
+    const res = await axios.post(`${base}/getChatHistory/${token}`, { chatId, count }, { timeout: 15000 });
+    return res.data
+        .filter(m => m.type === 'incoming' || m.type === 'outgoing')
+        .map(m => ({
+            sender: m.senderName || m.senderId || 'unknown',
+            text: m.textMessage || m.caption || '[non-text]',
+            timestamp: m.timestamp || 0,
+            type: m.type,
+        }));
+}
+
+async function getUrgentMessages() {
+    const chats = await getChats();
+    // Sort by unread count descending, cap at 5 chats to keep latency low
+    const unreadChats = chats
+        .filter(c => c.unread > 0)
+        .sort((a, b) => b.unread - a.unread)
+        .slice(0, 5);
+
+    const results = await Promise.all(
+        unreadChats.map(async chat => {
+            try {
+                const messages = await getRecentMessages(chat.id, 10);
+                return { chat: chat.name, unread: chat.unread, messages };
+            } catch {
+                return { chat: chat.name, unread: chat.unread, messages: [] };
+            }
+        })
+    );
+    return { unreadChats, results };
+}
+
+module.exports = { getChats, getRecentMessages, getUrgentMessages };
