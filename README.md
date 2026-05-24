@@ -1,6 +1,10 @@
 # Arch's Second Brain — Discord Bot
 
-A personal Discord bot that acts as a second brain interface. Log finance, learning, ideas, and projects directly from Discord into Google Sheets and Notion. Powered by Claude AI for natural language fallback.
+![Claude AI](https://img.shields.io/badge/LLM-Claude%20by%20Anthropic-orange?logo=anthropic&logoColor=white)
+![Discord.js](https://img.shields.io/badge/Discord.js-v14-5865F2?logo=discord&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-commonjs-339933?logo=node.js&logoColor=white)
+
+A personal Discord bot that acts as a second brain interface. Log finance, learning, ideas, and projects directly from Discord into Google Sheets and Notion. Powered by **Claude AI** (Anthropic) for natural language interaction, YouTube summarization, and WhatsApp triage.
 
 ## Features
 
@@ -120,6 +124,17 @@ In the Discord Developer Portal:
 - **Bot** → enable **Message Content Intent** (required for DM/mention fallback)
 - **OAuth2** → add redirect URI: `http://localhost:1500/api/auth/discord/redirect`
 - **OAuth2 → URL Generator** → scopes: `bot` → invite bot to your server
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| LLM | [Claude by Anthropic](https://www.anthropic.com) (Sonnet for summarization & WhatsApp triage, Haiku for `/ask` and mentions) |
+| Bot framework | [Discord.js v14](https://discord.js.org) |
+| Knowledge base | [Notion API](https://developers.notion.com) |
+| Finance tracking | [Google Sheets API](https://developers.google.com/sheets) |
+| WhatsApp | [GREEN-API](https://green-api.com) |
+| Runtime | Node.js |
 
 ## Project Structure
 
