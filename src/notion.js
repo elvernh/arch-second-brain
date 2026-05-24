@@ -48,24 +48,30 @@ function select(name) {
     return { select: { name: String(name) } };
 }
 
+const PLAIN = { bold: false, italic: false, strikethrough: false, underline: false, code: false, color: 'default' };
+
+function rt(text) {
+    return [{ type: 'text', text: { content: String(text).slice(0, 2000) }, annotations: PLAIN }];
+}
+
 function heading2Block(text) {
     return {
         object: 'block', type: 'heading_2',
-        heading_2: { rich_text: [{ type: 'text', text: { content: text.slice(0, 2000) } }] }
+        heading_2: { rich_text: rt(text) }
     };
 }
 
 function bulletBlock(text) {
     return {
         object: 'block', type: 'bulleted_list_item',
-        bulleted_list_item: { rich_text: [{ type: 'text', text: { content: text.slice(0, 2000) } }] }
+        bulleted_list_item: { rich_text: rt(text) }
     };
 }
 
 function paragraphBlock(text) {
     return {
         object: 'block', type: 'paragraph',
-        paragraph: { rich_text: [{ type: 'text', text: { content: text.slice(0, 2000) } }] }
+        paragraph: { rich_text: rt(text) }
     };
 }
 
