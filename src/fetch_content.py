@@ -73,6 +73,7 @@ def _ytdlp_transcript(url: str) -> str | None:
             "skip_download": True,
             "quiet": True,
             "no_warnings": True,
+            "check_formats": False,  # skip format availability check — we only need captions
         }
         if cookie_file:
             ydl_opts["cookiefile"] = cookie_file
