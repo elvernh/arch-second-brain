@@ -19,8 +19,11 @@ async function getVideoTitle(url) {
 }
 
 async function getTranscript(url) {
+    const fs = require('fs');
     const scriptPath = require('path').join(__dirname, 'fetch_content.py');
-    const { stdout } = await execFileAsync('python3', [scriptPath, url], { timeout: 30000 });
+    // Use Railway venv python if available, fall back to system python3
+    const python = fs.existsSync('/opt/venv/bin/python3') ? '/opt/venv/bin/python3' : 'python3';
+    const { stdout } = await execFileAsync(python, [scriptPath, url], { timeout: 30000 });
     return stdout;
 }
 
