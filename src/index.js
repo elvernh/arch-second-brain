@@ -58,6 +58,12 @@ client.on('error', (err) => {
     console.error('Discord client error:', err.message);
 });
 
+function safeErrorMessage(err) {
+    // Strip long hex/alphanumeric tokens that may appear in API URLs before sending to Discord
+    const msg = (err.message || String(err)).replace(/\/[A-Za-z0-9]{20,}/g, '/[REDACTED]');
+    return `Something went wrong: ${msg}`.slice(0, 1990);
+}
+
 // ── Slash command handler ─────────────────────────────────────────────────────
 
 const OWNER_ID = process.env.DISCORD_OWNER_ID;
@@ -344,9 +350,8 @@ Rules:
         }
 
     } catch (err) {
-        console.error(err);
-        const msg = `Something went wrong: ${err.message}`.slice(0, 1990);
-        await interaction.editReply(msg).catch(() => {});
+        console.error(err.message || err);
+        await interaction.editReply(safeErrorMessage(err)).catch(() => {});
     }
 });
 
@@ -379,8 +384,8 @@ client.on('messageCreate', async (message) => {
 
         await message.reply(response.content[0].text.slice(0, 1990));
     } catch (err) {
-        console.error(err);
-        await message.reply(`Something went wrong: ${err.message}`);
+        console.error(err.message || err);
+        await message.reply(safeErrorMessage(err));
     }
 });
 

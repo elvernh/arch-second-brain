@@ -7,33 +7,45 @@ function _base() {
     return { base: `https://api.green-api.com/waInstance${instanceId}`, token };
 }
 
+function greenApiError(err) {
+    // Prevent the raw URL (which contains the token) from leaking into error messages
+    const code = err.code || (err.response ? `HTTP ${err.response.status}` : 'network error');
+    return new Error(`GREEN-API request failed (${code})`);
+}
+
 async function getChats() {
     const { base, token } = _base();
-    const res = await axios.get(`${base}/getChats/${token}`, { timeout: 10000 });
-    return res.data.map(c => ({
-        id: c.id,
-        name: c.name || c.id,
-        unread: c.unreadCount || 0,
-    }));
+    try {
+        const res = await axios.get(`${base}/getChats/${token}`, { timeout: 10000 });
+        return res.data.map(c => ({
+            id: c.id,
+            name: c.name || c.id,
+            unread: c.unreadCount || 0,
+        }));
+    } catch (err) { throw greenApiError(err); }
 }
 
 async function getRecentMessages(chatId, count = 20) {
     const { base, token } = _base();
-    const res = await axios.post(`${base}/getChatHistory/${token}`, { chatId, count }, { timeout: 15000 });
-    return res.data
-        .filter(m => m.type === 'incoming' || m.type === 'outgoing')
-        .map(m => ({
-            sender: m.senderName || m.senderId || 'unknown',
-            text: m.textMessage || m.caption || '[non-text]',
-            timestamp: m.timestamp || 0,
-            type: m.type,
-        }));
+    try {
+        const res = await axios.post(`${base}/getChatHistory/${token}`, { chatId, count }, { timeout: 15000 });
+        return res.data
+            .filter(m => m.type === 'incoming' || m.type === 'outgoing')
+            .map(m => ({
+                sender: m.senderName || m.senderId || 'unknown',
+                text: m.textMessage || m.caption || '[non-text]',
+                timestamp: m.timestamp || 0,
+                type: m.type,
+            }));
+    } catch (err) { throw greenApiError(err); }
 }
 
 async function getInstanceState() {
     const { base, token } = _base();
-    const res = await axios.get(`${base}/getStateInstance/${token}`, { timeout: 5000 });
-    return res.data.stateInstance;
+    try {
+        const res = await axios.get(`${base}/getStateInstance/${token}`, { timeout: 5000 });
+        return res.data.stateInstance;
+    } catch (err) { throw greenApiError(err); }
 }
 
 async function getUrgentMessages() {
