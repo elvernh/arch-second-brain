@@ -53,6 +53,10 @@ def _supadata_transcript(url: str) -> str | None:
 
 
 def _ytdlp_transcript(url: str) -> str | None:
+    b64 = os.environ.get("YOUTUBE_COOKIES_B64")
+    if not b64:
+        return None  # yt-dlp without cookies always fails on cloud IPs
+
     try:
         import yt_dlp, requests, tempfile, base64
     except ImportError:
@@ -60,20 +64,15 @@ def _ytdlp_transcript(url: str) -> str | None:
 
     cookie_file = None
     try:
-        b64 = os.environ.get("YOUTUBE_COOKIES_B64")
-        if b64:
-            tf = tempfile.NamedTemporaryFile(mode='wb', suffix='.txt', delete=False)
-            tf.write(base64.b64decode(b64))
-            tf.close()
-            cookie_file = tf.name
+        tf = tempfile.NamedTemporaryFile(mode='wb', suffix='.txt', delete=False)
+        tf.write(base64.b64decode(b64))
+        tf.close()
+        cookie_file = tf.name
 
         ydl_opts = {
             "skip_download": True,
             "quiet": True,
             "no_warnings": True,
-            "extractor_args": {
-                "youtube": {"player_client": ["android_testsuite", "tv_embedded"]}
-            },
         }
         if cookie_file:
             ydl_opts["cookiefile"] = cookie_file
