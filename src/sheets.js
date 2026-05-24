@@ -13,6 +13,12 @@ const SECTIONS = {
 const PENGELUARAN_CATEGORIES = ['Makanan', 'Transport', 'Kesehatan', 'Hiburan', 'Belanja', 'Tagihan', 'Investasi', 'Lainnya'];
 
 function getAuth() {
+    // On Fly.io, credentials are injected as a JSON string via GOOGLE_SERVICE_ACCOUNT_JSON.
+    // Locally, fall back to the key file path.
+    if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+        const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+        return new google.auth.GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/spreadsheets'] });
+    }
     const keyFile = process.env.GOOGLE_SERVICE_ACCOUNT_PATH
         || path.join(process.env.HOME, '.config/second-brain/google_service_account.json');
     return new google.auth.GoogleAuth({ keyFile, scopes: ['https://www.googleapis.com/auth/spreadsheets'] });
