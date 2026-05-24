@@ -338,7 +338,8 @@ Rules:
 
     } catch (err) {
         console.error(err);
-        await interaction.editReply(`Something went wrong: ${err.message}`);
+        const msg = `Something went wrong: ${err.message}`.slice(0, 1990);
+        await interaction.editReply(msg).catch(() => {});
     }
 });
 

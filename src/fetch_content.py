@@ -11,16 +11,27 @@ Outputs extracted text to stdout.
 import sys, re, pathlib
 
 def fetch_youtube(url: str) -> str:
+    import os
     from youtube_transcript_api import YouTubeTranscriptApi
     match = re.search(r"(?:v=|youtu\.be/)([A-Za-z0-9_-]{11})", url)
     if not match:
         raise ValueError("Could not extract YouTube video ID from URL.")
     video_id = match.group(1)
-    api = YouTubeTranscriptApi()
+
+    proxy_user = os.environ.get("WEBSHARE_USERNAME")
+    proxy_pass = os.environ.get("WEBSHARE_PASSWORD")
+    if proxy_user and proxy_pass:
+        from youtube_transcript_api.proxies import WebshareProxyConfig
+        api = YouTubeTranscriptApi(proxies=WebshareProxyConfig(
+            proxy_username=proxy_user,
+            proxy_password=proxy_pass,
+        ))
+    else:
+        api = YouTubeTranscriptApi()
+
     try:
         transcript = api.fetch(video_id)
     except Exception:
-        # Fall back to any available language
         transcript_list = api.list(video_id)
         transcript = transcript_list.find_generated_transcript(
             [t.language_code for t in transcript_list]
