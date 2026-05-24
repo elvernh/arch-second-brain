@@ -1,4 +1,8 @@
 const axios = require('axios');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
+
+const execFileAsync = promisify(execFile);
 
 function extractVideoId(url) {
     const match = url.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
@@ -15,9 +19,9 @@ async function getVideoTitle(url) {
 }
 
 async function getTranscript(url) {
-    const { YoutubeTranscript } = require('youtube-transcript');
-    const chunks = await YoutubeTranscript.fetchTranscript(url);
-    return chunks.map(c => c.text).join(' ');
+    const scriptPath = require('path').join(__dirname, 'fetch_content.py');
+    const { stdout } = await execFileAsync('python3', [scriptPath, url]);
+    return stdout;
 }
 
 module.exports = { extractVideoId, getVideoTitle, getTranscript };
