@@ -9,6 +9,7 @@ const { logTransaction, getFinanceSummary, setBudget } = require('./sheets');
 const { getVideoTitle, getTranscript } = require('./youtube');
 const { getUrgentMessages } = require('./whatsapp');
 const { getContext, appendToVaultFile, todayWIB, nowWIB } = require('./brain');
+const { startWebhookServer, getStoredChats } = require('./webhook');
 
 const HABITS_FILE = path.join(process.env.HOME, 'Second-Brain/HABITS.md');
 const NOTIFY_STATE = path.join(process.env.HOME, '.claude/data/state/discord-notify.json');
@@ -269,19 +270,34 @@ client.on('interactionCreate', async (interaction) => {
             });
 
         } else if (commandName === 'whatsapp') {
-            const { unreadChats, results } = await getUrgentMessages();
+            const storedChats = getStoredChats().slice(0, 5);
 
-            if (results.length === 0) {
-                await interaction.editReply('No unread WhatsApp messages right now.');
-                return;
+            let contextData, headerText;
+
+            if (storedChats.length > 0) {
+                // Use real-time webhook store
+                const totalMessages = storedChats.reduce((s, c) => s + c.messages.length, 0);
+                headerText = `**WhatsApp — ${ts} WIB** · ${totalMessages} messages across ${storedChats.length} chats *(live)*`;
+                contextData = storedChats.map(c =>
+                    `Chat: ${c.name}\n` +
+                    c.messages.slice(-10).map(m => `  ${m.sender}: ${m.text}`).join('\n')
+                ).join('\n\n');
+            } else {
+                // Fall back to GREEN-API polling
+                const { unreadChats, results } = await getUrgentMessages();
+
+                if (results.length === 0) {
+                    await interaction.editReply('No unread WhatsApp messages right now.\n\n_Tip: make sure the webhook URL is set in your GREEN-API dashboard so messages are captured in real-time._');
+                    return;
+                }
+
+                const totalUnread = unreadChats.reduce((s, c) => s + c.unread, 0);
+                headerText = `**WhatsApp — ${ts} WIB** · ${totalUnread} unread across ${results.length} chats *(polled)*`;
+                contextData = results.map(r =>
+                    `Chat: ${r.chat} (${r.unread} unread)\n` +
+                    r.messages.slice(-10).map(m => `  [${m.type}] ${m.sender}: ${m.text}`).join('\n')
+                ).join('\n\n');
             }
-
-            const totalUnread = unreadChats.reduce((s, c) => s + c.unread, 0);
-
-            const contextData = results.map(r =>
-                `Chat: ${r.chat} (${r.unread} unread)\n` +
-                r.messages.slice(-10).map(m => `  [${m.type}] ${m.sender}: ${m.text}`).join('\n')
-            ).join('\n\n');
 
             const aiResponse = await anthropic.messages.create({
                 model: 'claude-sonnet-4-6',
@@ -297,13 +313,12 @@ Rules:
 - Reply in English`,
                 messages: [{
                     role: 'user',
-                    content: `Total unread: ${totalUnread} across ${results.length} chats.\n\n<whatsapp_messages>\n${contextData}\n</whatsapp_messages>\n\nProduce the report with sections: Urgent, Important, FYI, and for each urgent item include a recommended reply draft.`
+                    content: `<whatsapp_messages>\n${contextData}\n</whatsapp_messages>\n\nProduce the report with sections: Urgent, Important, FYI, and for each urgent item include a recommended reply draft.`
                 }]
             });
 
             const report = aiResponse.content[0].text;
-            const header = `**WhatsApp — ${ts} WIB** · ${totalUnread} unread across ${results.length} chats\n\n`;
-            const full = header + report;
+            const full = `${headerText}\n\n${report}`;
             await interaction.editReply(full.slice(0, 1990));
 
         } else if (commandName === 'ask') {
@@ -361,3 +376,4 @@ client.on('messageCreate', async (message) => {
 });
 
 client.login(process.env.token);
+startWebhookServer();
