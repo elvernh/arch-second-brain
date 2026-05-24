@@ -149,22 +149,25 @@ src/
 └── register-commands.js  # One-time slash command registration script
 ```
 
-## Deploying to Koyeb (free, no credit card)
+## Deploying to Discloud (free, no credit card)
 
-Koyeb's free tier runs 24/7 with no sleep and requires no payment info.
+Discloud is a hosting platform built specifically for Discord bots — free tier, no card required, runs 24/7.
 
 ### 1. Sign up
-Go to [koyeb.com](https://www.koyeb.com) and create a free account.
+Go to [discloud.app](https://discloud.app) and create a free account.
 
-### 2. Create a new app
-- Dashboard → **Create App** → **GitHub**
-- Connect your GitHub account and select this repo
-- Branch: `main`
-- Builder: **Dockerfile** (auto-detected)
-- Run command: leave empty (uses `CMD` from Dockerfile)
+### 2. Prepare the project zip
+Zip the project — exclude `node_modules/` and `.env`:
+```bash
+zip -r arch-second-brain.zip . -x "node_modules/*" -x ".env" -x ".git/*"
+```
 
-### 3. Set environment variables
-In the Koyeb service settings → **Environment variables**, add all values from `.env.example`:
+### 3. Upload the app
+- Go to [discloud.app](https://discloud.app) → **Add App** → upload the zip
+- Discloud reads `discloud.config` automatically for app settings
+
+### 4. Set environment variables
+In the Discloud dashboard → your app → **Config**, add all values from `.env.example`:
 
 | Variable | Value |
 |----------|-------|
@@ -172,7 +175,7 @@ In the Koyeb service settings → **Environment variables**, add all values from
 | `ClientSecret` | Discord app client secret |
 | `token` | Discord bot token |
 | `GUILD_ID` | Discord server ID |
-| `APP_URL` | `https://<your-koyeb-app>.koyeb.app` |
+| `APP_URL` | `https://<your-discloud-app>.discloudbot.com` |
 | `ANTHROPIC_API_KEY` | Anthropic API key |
 | `NOTION_TOKEN` | Notion integration token |
 | `NOTION_PAGE_FINANCE` | Notion Finance page ID |
@@ -186,8 +189,8 @@ In the Koyeb service settings → **Environment variables**, add all values from
 
 > For `GOOGLE_SERVICE_ACCOUNT_JSON`: open your service account JSON file, copy the entire contents, and paste it as the value.
 
-### 4. Deploy
-Click **Deploy**. Koyeb builds the Docker image and starts the bot. Redeploys automatically on every push to `main`.
+### 5. Start the app
+Click **Start** in the dashboard. The bot will be online 24/7.
 
 ## Environment Variables
 
