@@ -20,7 +20,7 @@ async function getVideoTitle(url) {
 
 async function getTranscript(url) {
     const scriptPath = require('path').join(__dirname, 'fetch_content.py');
-    const { stdout } = await execFileAsync('python3', [scriptPath, url]);
+    const { stdout } = await execFileAsync('python3', [scriptPath, url], { timeout: 30000 });
     return stdout;
 }
 

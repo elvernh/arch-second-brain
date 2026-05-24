@@ -2,7 +2,10 @@ FROM node:20-alpine
 WORKDIR /app
 
 RUN apk add --no-cache python3 py3-pip && \
-    pip3 install --break-system-packages youtube-transcript-api
+    python3 -m venv /opt/venv && \
+    /opt/venv/bin/pip install youtube-transcript-api requests beautifulsoup4
+
+ENV PATH="/opt/venv/bin:$PATH"
 
 COPY package*.json ./
 RUN npm ci --omit=dev
