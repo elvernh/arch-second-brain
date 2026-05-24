@@ -8,9 +8,11 @@ function _base() {
 }
 
 function greenApiError(err) {
-    // Prevent the raw URL (which contains the token) from leaking into error messages
-    const code = err.code || (err.response ? `HTTP ${err.response.status}` : 'network error');
-    return new Error(`GREEN-API request failed (${code})`);
+    // Prefer HTTP status over axios error code so the cause is actionable
+    const detail = err.response
+        ? `HTTP ${err.response.status}`
+        : (err.code || 'network error');
+    return new Error(`GREEN-API request failed (${detail})`);
 }
 
 async function getChats() {
