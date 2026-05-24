@@ -30,7 +30,18 @@ async function getRecentMessages(chatId, count = 20) {
         }));
 }
 
+async function getInstanceState() {
+    const { base, token } = _base();
+    const res = await axios.get(`${base}/getStateInstance/${token}`, { timeout: 5000 });
+    return res.data.stateInstance;
+}
+
 async function getUrgentMessages() {
+    const state = await getInstanceState();
+    if (state !== 'authorized') {
+        throw new Error(`WhatsApp instance is not connected (state: ${state}). Please re-scan the QR code in your GREEN-API dashboard.`);
+    }
+
     const chats = await getChats();
     // Sort by unread count descending, cap at 5 chats to keep latency low
     const unreadChats = chats
@@ -51,4 +62,4 @@ async function getUrgentMessages() {
     return { unreadChats, results };
 }
 
-module.exports = { getChats, getRecentMessages, getUrgentMessages };
+module.exports = { getChats, getRecentMessages, getUrgentMessages, getInstanceState };
