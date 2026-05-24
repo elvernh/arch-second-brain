@@ -18,13 +18,13 @@ def fetch_youtube(url: str) -> str:
         raise ValueError("Could not extract YouTube video ID from URL.")
     video_id = match.group(1)
 
-    proxy_user = os.environ.get("WEBSHARE_USERNAME")
-    proxy_pass = os.environ.get("WEBSHARE_PASSWORD")
-    if proxy_user and proxy_pass:
+    username = os.environ.get("WEBSHARE_USERNAME")
+    password = os.environ.get("WEBSHARE_PASSWORD")
+    if username and password:
         from youtube_transcript_api.proxies import WebshareProxyConfig
         api = YouTubeTranscriptApi(proxy_config=WebshareProxyConfig(
-            proxy_username=proxy_user,
-            proxy_password=proxy_pass,
+            proxy_username=username,
+            proxy_password=password,
         ))
     else:
         api = YouTubeTranscriptApi()
@@ -46,13 +46,10 @@ def fetch_article(url: str) -> str:
     resp = requests.get(url, headers=headers, timeout=15)
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "html.parser")
-    # Remove nav, footer, scripts, ads
     for tag in soup(["script", "style", "nav", "footer", "header", "aside", "form"]):
         tag.decompose()
-    # Try to find main content
     main = soup.find("article") or soup.find("main") or soup.find("body")
     text = main.get_text(separator="\n", strip=True) if main else soup.get_text()
-    # Collapse blank lines
     lines = [l.strip() for l in text.splitlines() if l.strip()]
     return f"[Article — {url}]\n\n" + "\n".join(lines)
 

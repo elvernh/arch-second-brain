@@ -28,14 +28,7 @@ async function getTranscript(url) {
     const scriptPath = path.join(__dirname, 'fetch_content.py');
     const python = fs.existsSync('/opt/venv/bin/python3') ? '/opt/venv/bin/python3' : 'python3';
 
-    const env = { ...process.env };
-    if (process.env.WEBSHARE_USERNAME && process.env.WEBSHARE_PASSWORD) {
-        const proxyUrl = `http://${process.env.WEBSHARE_USERNAME}:${process.env.WEBSHARE_PASSWORD}@p.webshare.io:80`;
-        env.HTTP_PROXY = proxyUrl;
-        env.HTTPS_PROXY = proxyUrl;
-    }
-
-    const { stdout } = await execFileAsync(python, [scriptPath, url], { timeout: 30000, env });
+    const { stdout } = await execFileAsync(python, [scriptPath, url], { timeout: 30000 });
     return stdout;
 }
 
