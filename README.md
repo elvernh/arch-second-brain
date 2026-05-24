@@ -149,48 +149,95 @@ src/
 └── register-commands.js  # One-time slash command registration script
 ```
 
-## Deploying to Discloud (free, no credit card)
+## Deploying to Oracle Cloud (free forever)
 
-Discloud is a hosting platform built specifically for Discord bots — free tier, no card required, runs 24/7.
+Oracle Cloud Always Free tier gives you a real Linux VM with 1GB RAM that never expires. Requires a credit card for identity verification only — Always Free resources are never charged.
 
-### 1. Sign up
-Go to [discloud.app](https://discloud.app) and create a free account.
+### 1. Sign up & create a VM
 
-### 2. Prepare the project zip
-Zip the project — exclude `node_modules/` and `.env`:
+1. Go to [cloud.oracle.com](https://cloud.oracle.com) → sign up
+2. During sign-up, select home region: **ap-singapore-1** (closest to Indonesia)
+3. Go to **Compute → Instances → Create Instance**
+4. Set the following:
+   - **Image:** Ubuntu 22.04
+   - **Shape:** VM.Standard.A1.Flex (Arm) — Always Free, up to 4 OCPUs + 24GB RAM
+   - **SSH keys:** Generate a key pair → download the private key (`.key` file)
+5. Click **Create** — wait ~2 min for the instance to start
+6. Copy the **Public IP address** from the instance details page
+
+### 2. SSH into the server
+
 ```bash
-zip -r arch-second-brain.zip . -x "node_modules/*" -x ".env" -x ".git/*"
+chmod 400 ~/Downloads/your-key.key
+ssh -i ~/Downloads/your-key.key ubuntu@<YOUR_PUBLIC_IP>
 ```
 
-### 3. Upload the app
-- Go to [discloud.app](https://discloud.app) → **Add App** → upload the zip
-- Discloud reads `discloud.config` automatically for app settings
+### 3. Install Node.js and PM2
 
-### 4. Set environment variables
-In the Discloud dashboard → your app → **Config**, add all values from `.env.example`:
+```bash
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs git
+sudo npm install -g pm2
+```
 
-| Variable | Value |
-|----------|-------|
-| `ClientID` | Discord app client ID |
-| `ClientSecret` | Discord app client secret |
-| `token` | Discord bot token |
-| `GUILD_ID` | Discord server ID |
-| `APP_URL` | `https://<your-discloud-app>.discloudbot.com` |
-| `ANTHROPIC_API_KEY` | Anthropic API key |
-| `NOTION_TOKEN` | Notion integration token |
-| `NOTION_PAGE_FINANCE` | Notion Finance page ID |
-| `NOTION_PAGE_LEARNING` | Notion Learning page ID |
-| `NOTION_PAGE_IDEAS` | Notion Ideas page ID |
-| `NOTION_PAGE_PROJECTS` | Notion Projects page ID |
-| `SPREADSHEET_ID` | Google Sheets spreadsheet ID |
-| `GOOGLE_SERVICE_ACCOUNT_JSON` | Full contents of your `google_service_account.json` file |
-| `WHATSAPP_INSTANCE_ID` | GREEN-API instance ID |
-| `WHATSAPP_TOKEN` | GREEN-API token |
+### 4. Clone the repo and install dependencies
 
-> For `GOOGLE_SERVICE_ACCOUNT_JSON`: open your service account JSON file, copy the entire contents, and paste it as the value.
+```bash
+git clone https://github.com/elvernh/arch-second-brain.git
+cd arch-second-brain
+npm install
+```
 
-### 5. Start the app
-Click **Start** in the dashboard. The bot will be online 24/7.
+### 5. Set up environment variables
+
+```bash
+cp .env.example .env
+nano .env
+```
+
+Fill in all values. For the Google service account:
+
+```bash
+mkdir -p ~/.config/second-brain
+nano ~/.config/second-brain/google_service_account.json
+# paste your service account JSON, then Ctrl+O → Enter → Ctrl+X to save
+```
+
+Make sure `.env` has:
+```
+GOOGLE_SERVICE_ACCOUNT_PATH=/home/ubuntu/.config/second-brain/google_service_account.json
+```
+
+### 6. Register slash commands (run once)
+
+```bash
+node src/register-commands.js
+```
+
+### 7. Start the bot with PM2 (24/7, auto-restarts on crash)
+
+```bash
+pm2 start src/index.js --name arch-second-brain
+pm2 save
+pm2 startup   # follow the printed command to enable auto-start on reboot
+```
+
+### Useful PM2 commands
+
+```bash
+pm2 logs arch-second-brain    # live logs
+pm2 status                    # check if running
+pm2 restart arch-second-brain # restart
+pm2 stop arch-second-brain    # stop
+```
+
+### Updating the bot
+
+```bash
+cd ~/arch-second-brain
+git pull
+pm2 restart arch-second-brain
+```
 
 ## Environment Variables
 
