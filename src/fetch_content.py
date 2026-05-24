@@ -22,7 +22,7 @@ def fetch_youtube(url: str) -> str:
     proxy_pass = os.environ.get("WEBSHARE_PASSWORD")
     if proxy_user and proxy_pass:
         from youtube_transcript_api.proxies import WebshareProxyConfig
-        api = YouTubeTranscriptApi(proxies=WebshareProxyConfig(
+        api = YouTubeTranscriptApi(proxy_config=WebshareProxyConfig(
             proxy_username=proxy_user,
             proxy_password=proxy_pass,
         ))
