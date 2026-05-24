@@ -149,6 +149,46 @@ src/
 └── register-commands.js  # One-time slash command registration script
 ```
 
+## Deploying to Koyeb (free, no credit card)
+
+Koyeb's free tier runs 24/7 with no sleep and requires no payment info.
+
+### 1. Sign up
+Go to [koyeb.com](https://www.koyeb.com) and create a free account.
+
+### 2. Create a new app
+- Dashboard → **Create App** → **GitHub**
+- Connect your GitHub account and select this repo
+- Branch: `main`
+- Builder: **Dockerfile** (auto-detected)
+- Run command: leave empty (uses `CMD` from Dockerfile)
+
+### 3. Set environment variables
+In the Koyeb service settings → **Environment variables**, add all values from `.env.example`:
+
+| Variable | Value |
+|----------|-------|
+| `ClientID` | Discord app client ID |
+| `ClientSecret` | Discord app client secret |
+| `token` | Discord bot token |
+| `GUILD_ID` | Discord server ID |
+| `APP_URL` | `https://<your-koyeb-app>.koyeb.app` |
+| `ANTHROPIC_API_KEY` | Anthropic API key |
+| `NOTION_TOKEN` | Notion integration token |
+| `NOTION_PAGE_FINANCE` | Notion Finance page ID |
+| `NOTION_PAGE_LEARNING` | Notion Learning page ID |
+| `NOTION_PAGE_IDEAS` | Notion Ideas page ID |
+| `NOTION_PAGE_PROJECTS` | Notion Projects page ID |
+| `SPREADSHEET_ID` | Google Sheets spreadsheet ID |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | Full contents of your `google_service_account.json` file |
+| `WHATSAPP_INSTANCE_ID` | GREEN-API instance ID |
+| `WHATSAPP_TOKEN` | GREEN-API token |
+
+> For `GOOGLE_SERVICE_ACCOUNT_JSON`: open your service account JSON file, copy the entire contents, and paste it as the value.
+
+### 4. Deploy
+Click **Deploy**. Koyeb builds the Docker image and starts the bot. Redeploys automatically on every push to `main`.
+
 ## Environment Variables
 
 See `.env.example` for the full list. Never commit `.env` — it is git-ignored.
