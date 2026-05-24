@@ -11,84 +11,87 @@ Outputs extracted text to stdout.
 import sys, re, pathlib
 
 
-def _innertube_transcript(video_id: str):
-    """Fetch transcript via YouTube iOS InnerTube API (bypasses cloud IP blocks)."""
-    import requests
-
-    resp = requests.post(
-        "https://www.youtube.com/youtubei/v1/player",
-        headers={
-            "Content-Type": "application/json",
-            "X-Goog-Api-Key": "AIzaSyB-63vPrdThhKuerbB2N_l7Kwwcxj6yUAc",
-            "User-Agent": "com.google.ios.youtube/19.09.3 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X;)",
-        },
-        json={
-            "context": {
-                "client": {
-                    "clientName": "IOS",
-                    "clientVersion": "19.09.3",
-                    "deviceModel": "iPhone16,2",
-                    "hl": "en",
-                    "gl": "US",
-                }
-            },
-            "videoId": video_id,
-        },
-        timeout=15,
-    )
-    if not resp.ok:
-        return None
-
-    tracks = (
-        resp.json()
-        .get("captions", {})
-        .get("playerCaptionsTracklistRenderer", {})
-        .get("captionTracks", [])
-    )
-    if not tracks:
-        return None
-
-    track = next((t for t in tracks if t.get("languageCode", "").startswith("en")), tracks[0])
-    cap = requests.get(track["baseUrl"] + "&fmt=json3", timeout=15)
-    if not cap.ok:
-        return None
-
-    texts = []
-    for event in cap.json().get("events", []):
-        for seg in event.get("segs", []):
-            t = seg.get("utf8", "").strip()
-            if t and t != "\n":
-                texts.append(t)
-
-    return " ".join(texts) if texts else None
-
-
 def fetch_youtube(url: str) -> str:
-    import os
     match = re.search(r"(?:v=|youtu\.be/)([A-Za-z0-9_-]{11})", url)
     if not match:
         raise ValueError("Could not extract YouTube video ID from URL.")
-    video_id = match.group(1)
 
-    # Primary: iOS InnerTube (no proxy needed, works from cloud IPs)
-    text = _innertube_transcript(video_id)
+    # Primary: yt-dlp with android_testsuite client (bypasses cloud IP blocks)
+    text = _ytdlp_transcript(url)
     if text:
         return f"[YouTube transcript — {url}]\n\n{text}"
 
-    # Fallback: youtube-transcript-api (works locally; proxy for cloud)
+    # Fallback: youtube-transcript-api (works on non-datacenter IPs)
+    return _ytta_transcript(url)
+
+
+def _ytdlp_transcript(url: str) -> str | None:
+    try:
+        import yt_dlp, requests, json
+    except ImportError:
+        return None
+
+    ydl_opts = {
+        "skip_download": True,
+        "quiet": True,
+        "no_warnings": True,
+        "extractor_args": {
+            "youtube": {"player_client": ["android_testsuite", "tv_embedded"]}
+        },
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+    except Exception as e:
+        print(f"yt-dlp failed: {e}", file=sys.stderr)
+        return None
+
+    captions = info.get("automatic_captions") or info.get("subtitles") or {}
+    if not captions:
+        print("yt-dlp: no captions found", file=sys.stderr)
+        return None
+
+    lang = "en" if "en" in captions else next(iter(captions))
+    formats = captions[lang]
+    fmt = next(
+        (f for f in formats if f.get("ext") == "json3"),
+        next((f for f in formats if f.get("ext") == "vtt"), formats[0]),
+    )
+
+    try:
+        resp = requests.get(fmt["url"], timeout=15)
+        resp.raise_for_status()
+    except Exception as e:
+        print(f"yt-dlp caption fetch failed: {e}", file=sys.stderr)
+        return None
+
+    if fmt.get("ext") == "json3":
+        texts = []
+        for event in resp.json().get("events", []):
+            for seg in event.get("segs", []):
+                t = seg.get("utf8", "").strip()
+                if t and t != "\n":
+                    texts.append(t)
+        return " ".join(texts) if texts else None
+
+    # VTT: strip timing lines
+    lines = [
+        l for l in resp.text.splitlines()
+        if l and not l.startswith("WEBVTT") and
+        not re.match(r"\d{2}:\d{2}", l) and
+        not re.match(r"\d+$", l) and
+        not l.startswith("NOTE")
+    ]
+    result = " ".join(lines)
+    return result if result.strip() else None
+
+
+def _ytta_transcript(url: str) -> str:
     from youtube_transcript_api import YouTubeTranscriptApi
-
-    username = os.environ.get("WEBSHARE_USERNAME")
-    password = os.environ.get("WEBSHARE_PASSWORD")
-    if username and password:
-        from youtube_transcript_api.proxies import WebshareProxyConfig
-        api = YouTubeTranscriptApi(proxy_config=WebshareProxyConfig(
-            proxy_username=username,
-            proxy_password=password,
-        ))
-    else:
-        api = YouTubeTranscriptApi()
-
+    match = re.search(r"(?:v=|youtu\.be/)([A-Za-z0-9_-]{11})", url)
+    video_id = match.group(1)
+    api = YouTubeTranscriptApi()
     try:
         transcript = api.fetch(video_id)
     except Exception:

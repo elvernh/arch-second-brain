@@ -3,7 +3,7 @@ WORKDIR /app
 
 RUN apk add --no-cache python3 py3-pip && \
     python3 -m venv /opt/venv && \
-    /opt/venv/bin/pip install "youtube-transcript-api>=0.7.0" requests beautifulsoup4
+    /opt/venv/bin/pip install "youtube-transcript-api>=0.7.0" requests beautifulsoup4 yt-dlp
 
 ENV PATH="/opt/venv/bin:$PATH"
 
