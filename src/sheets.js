@@ -121,4 +121,4 @@ async function getFinanceSummary() {
     return { month: sheetName, income, savings, expenses, budget, sisa, net };
 }
 
-module.exports = { logTransaction, getFinanceSummary, monthSheetName };
+module.exports = { logTransaction, getFinanceSummary, setBudget, monthSheetName };

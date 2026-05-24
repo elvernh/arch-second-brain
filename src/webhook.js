@@ -1,7 +1,7 @@
 const express = require('express');
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
 
 // In-memory store: chatId -> { name, messages[] }
 const messageStore = new Map();
@@ -32,6 +32,8 @@ function getStoredChats() {
 
 app.post('/webhook', (req, res) => {
     const body = req.body;
+    const expectedId = process.env.WHATSAPP_INSTANCE_ID;
+    if (expectedId && String(body.instanceId) !== String(expectedId)) return res.sendStatus(403);
     if (body.typeWebhook !== 'incomingMessageReceived') return res.sendStatus(200);
 
     const { senderData, messageData } = body;

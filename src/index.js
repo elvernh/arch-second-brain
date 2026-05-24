@@ -60,13 +60,20 @@ client.on('error', (err) => {
 
 // ── Slash command handler ─────────────────────────────────────────────────────
 
+const OWNER_ID = process.env.DISCORD_OWNER_ID;
+
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
 
     try {
-        await interaction.deferReply();
+        await interaction.deferReply({ ephemeral: true });
     } catch {
-        return; // interaction expired before we could respond
+        return;
+    }
+
+    if (OWNER_ID && interaction.user.id !== OWNER_ID) {
+        await interaction.editReply('Not authorized.').catch(() => {});
+        return;
     }
 
     const { commandName, options } = interaction;
@@ -347,6 +354,7 @@ Rules:
 
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
+    if (OWNER_ID && message.author.id !== OWNER_ID) return;
 
     const mentioned = message.mentions.has(client.user);
     const isDM = message.channel.type === 1;
